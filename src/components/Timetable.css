@@ -1,0 +1,40 @@
+.timetable-container {
+  padding: 30px;
+  font-family: Arial, sans-serif;
+}
+
+.day-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.card {
+  width: 220px;
+  padding: 15px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  border-left: 6px solid #4f46e5;
+}
+
+.card.break {
+  background: #fff7e6;
+  border-left-color: orange;
+}
+
+.card.free {
+  background: #f3f4f6;
+  border-left-color: gray;
+}
+
+.card.lab {
+  background: #e6fffa;
+  border-left-color: teal;
+}
+
+.time {
+  font-size: 13px;
+  color: #555;
+}
