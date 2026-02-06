@@ -4,6 +4,7 @@ import Header from './components/Header';
 import TimetableForm from './components/TimetableForm';
 import TimetablePreview from './components/TimetablePreview';
 import Reports from './components/Reports';
+import ViewTimetable from './components/ViewTimetable';
 import Modal from './components/Modal';
 import DraftListModal from './components/DraftListModal';
 import './App.css';
@@ -146,6 +147,9 @@ function App() {
               onApprove={handleApprove}
               status={status}
             />
+          )}
+          {currentView === 'view-timetable' && (
+            <ViewTimetable />
           )}
           {currentView === 'reports' && (
             <Reports mockData={mockTimetableData} />

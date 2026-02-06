@@ -1,4 +1,5 @@
 import React from 'react';
+import './ViewTimetable.css';
 
 // Timing for Third Year & Final Year (existing structure)
 const PERIOD_TIMES_NORMAL = [
