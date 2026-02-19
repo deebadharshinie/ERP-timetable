@@ -1,79 +1,138 @@
 import React, { useState, useEffect } from 'react';
+import { departmentAPI, classAPI, subjectAPI, facultyAPI, roomAPI, timetableAPI } from '../services/api';
 
-// Timing for Third Year & Final Year (existing structure)
-const PERIOD_TIMES_NORMAL = [
-  { period: 1, start: '09:30', end: '10:20', label: 'Period 1' },
-  { period: 2, start: '10:20', end: '11:10', label: 'Period 2' },
-  { period: 'Break', start: '11:10', end: '11:30', label: 'Break' },
-  { period: 3, start: '11:30', end: '12:25', label: 'Period 3' },
-  { period: 'Lunch', start: '12:25', end: '01:10', label: 'Lunch' },
-  { period: 4, start: '01:10', end: '02:00', label: 'Period 4' },
-  { period: 5, start: '02:00', end: '02:20', label: 'Period 5' },
-  { period: 'Break2', start: '02:20', end: '03:10', label: 'Break' },
-  { period: 6, start: '03:10', end: '04:00', label: 'Period 6' },
-  { period: 7, start: '04:00', end: '04:45', label: 'Period 7' },
-];
-
-// Timing for First Year & Second Year (continuous with breaks after P2, P4, P6)
-const PERIOD_TIMES_FIRST_SECOND = [
-  { period: 1, start: '09:30', end: '10:20', label: 'Period 1' },
-  { period: 2, start: '10:20', end: '11:10', label: 'Period 2' },
-  { period: 'Break1', start: '11:10', end: '11:30', label: 'Break' },
-  { period: 3, start: '11:30', end: '12:20', label: 'Period 3' },
-  { period: 4, start: '12:20', end: '01:10', label: 'Period 4' },
-  { period: 'Lunch', start: '01:30', end: '02:10', label: 'Lunch' },
-  { period: 5, start: '02:10', end: '03:00', label: 'Period 5' },
-  { period: 6, start: '03:00', end: '03:50', label: 'Period 6' },
-  { period: 'Break3', start: '03:50', end: '04:10', label: 'Break' },
-  { period: 7, start: '04:10', end: '05:00', label: 'Period 7' },
+// Time slots matching the database schema (from time_slots table)
+const DEFAULT_TIME_SLOTS = [
+  { id: 1, start_time: '09:00:00', end_time: '10:00:00', period_number: 1, label: 'Period 1 (09:00 - 10:00)' },
+  { id: 2, start_time: '10:00:00', end_time: '11:00:00', period_number: 2, label: 'Period 2 (10:00 - 11:00)' },
+  { id: 3, start_time: '11:15:00', end_time: '12:15:00', period_number: 3, label: 'Period 3 (11:15 - 12:15)' },
+  { id: 4, start_time: '13:15:00', end_time: '14:15:00', period_number: 4, label: 'Period 4 (13:15 - 14:15)' },
+  { id: 5, start_time: '14:15:00', end_time: '15:15:00', period_number: 5, label: 'Period 5 (14:15 - 15:15)' },
+  { id: 6, start_time: '15:30:00', end_time: '16:30:00', period_number: 6, label: 'Period 6 (15:30 - 16:30)' },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const SUBJECT_TYPES = ['Theory', 'Lab', 'Free Period', 'Break', 'Lunch'];
+const SUBJECT_TYPES = ['Theory', 'Lab'];
 
 const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
+  const [departments, setDepartments] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [faculties, setFaculties] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [timeSlots, setTimeSlots] = useState(DEFAULT_TIME_SLOTS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [formData, setFormData] = useState({
     academicYear: '',
     department: '',
-    year: '',
+    classId: '',
     semester: '',
-    section: '',
-    effectiveDate: '',
     ...initialData
   });
 
   const [periodForm, setPeriodForm] = useState({
     day: 'Monday',
-    periodNumber: 1,
-    subjectCode: '',
-    subjectName: '',
-    subjectType: 'Theory',
-    staffName: '',
-    roomNumber: ''
+    timeSlotId: 1,
+    subjectId: '',
+    facultyId: '',
+    roomId: '',
+    subjectType: 'Theory'
   });
 
   const [periods, setPeriods] = useState([]);
   const [editingIndex, setEditingIndex] = useState(-1);
   const [errors, setErrors] = useState({});
 
-  // Get period times based on year (First/Second Year have different timing)
-  const getPeriodTimes = () => {
-    const isFirstOrSecondYear = formData.year === 'I Year' || formData.year === 'II Year';
-    return isFirstOrSecondYear ? PERIOD_TIMES_FIRST_SECOND : PERIOD_TIMES_NORMAL;
-  };
+  // Fetch initial data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch departments
+        const deptResponse = await departmentAPI.getAll({ is_active: true });
+        if (deptResponse.success) {
+          setDepartments(deptResponse.data);
+        }
 
-  // Get time info for a specific period
-  const getTimeForPeriod = (periodNumber) => {
-    const times = getPeriodTimes();
-    return times.find(t => 
-      t.period === periodNumber ||
-      (t.period === 'Break' && (periodNumber === 'Break' || periodNumber === 'Break1' || periodNumber === 'Break2' || periodNumber === 'Break3')) ||
-      (t.period === 'Break1' && periodNumber === 'Break1') ||
-      (t.period === 'Break2' && periodNumber === 'Break2') ||
-      (t.period === 'Break3' && periodNumber === 'Break3') ||
-      (t.period === 'Lunch' && periodNumber === 'Lunch')
-    ) || { start: '', end: '' };
-  };
+        // Fetch time slots
+        const slotsResponse = await timetableAPI.getTimeSlots();
+        if (slotsResponse.success && slotsResponse.data.length > 0) {
+          setTimeSlots(slotsResponse.data.map(slot => ({
+            ...slot,
+            label: `Period ${slot.period_number} (${slot.start_time} - ${slot.end_time})`
+          })));
+        }
+
+        // Fetch rooms
+        const roomsResponse = await roomAPI.getAll({ is_available: true });
+        if (roomsResponse.success) {
+          setRooms(roomsResponse.data);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load data. Using default values.');
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Fetch classes when department changes
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (formData.department) {
+        try {
+          const response = await classAPI.getAll({ department_id: formData.department });
+          if (response.success) {
+            setClasses(response.data);
+          }
+        } catch (err) {
+          console.error('Error fetching classes:', err);
+        }
+      }
+    };
+    fetchClasses();
+  }, [formData.department]);
+
+  // Fetch subjects when department changes
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      if (formData.department) {
+        try {
+          const response = await subjectAPI.getAll({ department_id: formData.department });
+          if (response.success) {
+            setSubjects(response.data);
+          }
+        } catch (err) {
+          console.error('Error fetching subjects:', err);
+        }
+      }
+    };
+    fetchSubjects();
+  }, [formData.department]);
+
+  // Fetch faculties when department changes
+  useEffect(() => {
+    const fetchFaculties = async () => {
+      if (formData.department) {
+        try {
+          const response = await facultyAPI.getAll({ department_id: formData.department });
+          if (response.success) {
+            setFaculties(response.data);
+          }
+        } catch (err) {
+          console.error('Error fetching faculties:', err);
+        }
+      }
+    };
+    fetchFaculties();
+  }, [formData.department]);
 
   useEffect(() => {
     if (initialData.periods && initialData.periods.length > 0) {
@@ -92,34 +151,41 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   const handlePeriodFormChange = (e) => {
     const { name, value } = e.target;
     setPeriodForm(prev => ({ ...prev, [name]: value }));
-    
-    if (name === 'subjectType') {
-      if (value === 'Break' || value === 'Lunch') {
-        setPeriodForm(prev => ({ ...prev, staffName: '', roomNumber: '' }));
-      }
-    }
+  };
+
+  const getTimeSlotById = (id) => {
+    return timeSlots.find(ts => ts.id === parseInt(id)) || timeSlots[0];
+  };
+
+  const getSubjectById = (id) => {
+    return subjects.find(s => s.id === parseInt(id));
+  };
+
+  const getFacultyById = (id) => {
+    return faculties.find(f => f.id === parseInt(id));
+  };
+
+  const getRoomById = (id) => {
+    return rooms.find(r => r.id === parseInt(id));
   };
 
   const validatePeriod = () => {
     const newErrors = {};
     
-    if (!periodForm.subjectCode && periodForm.subjectType !== 'Break' && periodForm.subjectType !== 'Lunch') {
-      newErrors.subjectCode = 'Subject Code is required';
+    if (!periodForm.subjectId) {
+      newErrors.subjectId = 'Subject is required';
     }
-    if (!periodForm.subjectName && periodForm.subjectType !== 'Break' && periodForm.subjectType !== 'Lunch') {
-      newErrors.subjectName = 'Subject Name is required';
-    }
-    if (!periodForm.staffName && periodForm.subjectType !== 'Break' && periodForm.subjectType !== 'Lunch') {
-      newErrors.staffName = 'Staff Name is required';
+    if (!periodForm.facultyId) {
+      newErrors.facultyId = 'Faculty is required';
     }
     
     const existingPeriod = periods.find(p => 
       p.day === periodForm.day && 
-      p.periodNumber === periodForm.periodNumber &&
+      p.time_slot_id === parseInt(periodForm.timeSlotId) &&
       p !== periods[editingIndex]
     );
     if (existingPeriod) {
-      newErrors.periodNumber = 'This period already has a subject assigned';
+      newErrors.timeSlotId = 'This time slot already has a subject assigned';
     }
 
     setErrors(newErrors);
@@ -129,12 +195,23 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   const handleAddPeriod = () => {
     if (!validatePeriod()) return;
 
-    const timeInfo = getTimeForPeriod(periodForm.periodNumber);
+    const timeSlot = getTimeSlotById(periodForm.timeSlotId);
+    const subject = getSubjectById(periodForm.subjectId);
+    const faculty = getFacultyById(periodForm.facultyId);
+    const room = periodForm.roomId ? getRoomById(periodForm.roomId) : null;
     
     const newPeriod = {
       ...periodForm,
-      startTime: timeInfo?.start || '',
-      endTime: timeInfo?.end || '',
+      time_slot_id: parseInt(periodForm.timeSlotId),
+      subject_id: parseInt(periodForm.subjectId),
+      faculty_id: parseInt(periodForm.facultyId),
+      room_id: periodForm.roomId ? parseInt(periodForm.roomId) : null,
+      start_time: timeSlot.start_time,
+      end_time: timeSlot.end_time,
+      subject_code: subject?.subject_code || '',
+      subject_name: subject?.subject_name || '',
+      faculty_name: faculty?.name || '',
+      room_number: room?.room_number || '',
       id: editingIndex >= 0 ? editingIndex : Date.now()
     };
 
@@ -149,12 +226,11 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
 
     setPeriodForm({
       day: 'Monday',
-      periodNumber: 1,
-      subjectCode: '',
-      subjectName: '',
-      subjectType: 'Theory',
-      staffName: '',
-      roomNumber: ''
+      timeSlotId: 1,
+      subjectId: '',
+      facultyId: '',
+      roomId: '',
+      subjectType: 'Theory'
     });
   };
 
@@ -162,12 +238,11 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
     const period = periods[index];
     setPeriodForm({
       day: period.day,
-      periodNumber: period.periodNumber,
-      subjectCode: period.subjectCode,
-      subjectName: period.subjectName,
-      subjectType: period.subjectType,
-      staffName: period.staffName,
-      roomNumber: period.roomNumber
+      timeSlotId: period.time_slot_id,
+      subjectId: period.subject_id,
+      facultyId: period.faculty_id,
+      roomId: period.room_id || '',
+      subjectType: period.subject_type || 'Theory'
     });
     setEditingIndex(index);
   };
@@ -184,10 +259,8 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
     
     if (!formData.academicYear) newErrors.academicYear = 'Academic Year is required';
     if (!formData.department) newErrors.department = 'Department is required';
-    if (!formData.year) newErrors.year = 'Year is required';
+    if (!formData.classId) newErrors.classId = 'Class is required';
     if (!formData.semester) newErrors.semester = 'Semester is required';
-    if (!formData.section) newErrors.section = 'Section is required';
-    if (!formData.effectiveDate) newErrors.effectiveDate = 'Effective Date is required';
     
     if (periods.length === 0) newErrors.periods = 'Please add at least one period';
 
@@ -198,36 +271,47 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   const handleGenerate = () => {
     if (!validateForm()) return;
     
+    // Convert semester format to match database (e.g., "2026-Odd")
+    const semesterValue = formData.semester.includes('-') 
+      ? formData.semester 
+      : `${formData.academicYear.split('-')[0]}-${formData.semester}`;
+    
     onGenerate({
       ...formData,
+      semester: semesterValue,
+      class_id: parseInt(formData.classId),
       periods: periods
     });
   };
-
-  const isBreakOrLunch = periodForm.subjectType === 'Break' || periodForm.subjectType === 'Lunch';
 
   const getBadgeClass = (type) => {
     switch (type) {
       case 'Theory': return 'badge-theory';
       case 'Lab': return 'badge-lab';
-      case 'Break': return 'badge-break';
-      case 'Lunch': return 'badge-lunch';
-      case 'Free Period': return 'badge-free';
       default: return '';
     }
   };
 
-  const getPeriodLabel = (period) => {
-    if (typeof period === 'number') return `Period ${period}`;
-    if (period === 'Break' || period === 'Break2') return 'Break';
-    if (period === 'Lunch') return 'Lunch';
-    return period;
-  };
+  if (loading) {
+    return (
+      <div className="form-container">
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <p>Loading data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="form-container">
       <h2 className="form-title">Create Student Timetable</h2>
       <p className="form-subtitle">Fill in the details below to create a new timetable for your class</p>
+
+      {error && (
+        <div style={{ padding: '12px', background: '#FEF2F2', color: '#DC2626', borderRadius: '6px', marginBottom: '20px' }}>
+          {error}
+        </div>
+      )}
 
       <div className="form-section">
         <h3 className="form-section-title">Academic Information</h3>
@@ -259,32 +343,32 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
               disabled={isReadOnly}
             >
               <option value="">Select Department</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Information Technology">Information Technology</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Civil">Civil</option>
-              <option value="Electrical">Electrical</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.department_name}
+                </option>
+              ))}
             </select>
             {errors.department && <span className="error">{errors.department}</span>}
           </div>
 
           <div className="form-group">
-            <label>Year</label>
+            <label>Class</label>
             <select
-              name="year"
+              name="classId"
               className="form-select"
-              value={formData.year}
+              value={formData.classId}
               onChange={handleInputChange}
               disabled={isReadOnly}
             >
-              <option value="">Select Year</option>
-              <option value="I Year">I Year</option>
-              <option value="II Year">II Year</option>
-              <option value="III Year">III Year</option>
-              <option value="IV Year">IV Year</option>
+              <option value="">Select Class</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name} - Section {cls.section}
+                </option>
+              ))}
             </select>
-            {errors.year && <span className="error">{errors.year}</span>}
+            {errors.classId && <span className="error">{errors.classId}</span>}
           </div>
 
           <div className="form-group">
@@ -297,46 +381,10 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
               disabled={isReadOnly}
             >
               <option value="">Select Semester</option>
-              <option value="I">I Semester</option>
-              <option value="II">II Semester</option>
-              <option value="III">III Semester</option>
-              <option value="IV">IV Semester</option>
-              <option value="V">V Semester</option>
-              <option value="VI">VI Semester</option>
-              <option value="VII">VII Semester</option>
-              <option value="VIII">VIII Semester</option>
+              <option value="Odd">Odd Semester (I, III, V, VII)</option>
+              <option value="Even">Even Semester (II, IV, VI, VIII)</option>
             </select>
             {errors.semester && <span className="error">{errors.semester}</span>}
-          </div>
-
-          <div className="form-group">
-            <label>Section</label>
-            <select
-              name="section"
-              className="form-select"
-              value={formData.section}
-              onChange={handleInputChange}
-              disabled={isReadOnly}
-            >
-              <option value="">Select Section</option>
-              <option value="A">Section A</option>
-              <option value="B">Section B</option>
-              <option value="C">Section C</option>
-            </select>
-            {errors.section && <span className="error">{errors.section}</span>}
-          </div>
-
-          <div className="form-group">
-            <label>Effective Date</label>
-            <input
-              type="date"
-              name="effectiveDate"
-              className="form-input"
-              value={formData.effectiveDate}
-              onChange={handleInputChange}
-              disabled={isReadOnly}
-            />
-            {errors.effectiveDate && <span className="error">{errors.effectiveDate}</span>}
           </div>
         </div>
       </div>
@@ -363,21 +411,21 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
 
         <div className="form-grid">
           <div className="form-group">
-            <label>Period</label>
+            <label>Time Slot</label>
             <select
-              name="periodNumber"
+              name="timeSlotId"
               className="form-select"
-              value={periodForm.periodNumber}
+              value={periodForm.timeSlotId}
               onChange={handlePeriodFormChange}
               disabled={isReadOnly}
             >
-              {getPeriodTimes().map(time => (
-                <option key={time.period} value={time.period}>
-                  {time.label} ({time.start} - {time.end})
+              {timeSlots.map(slot => (
+                <option key={slot.id} value={slot.id}>
+                  {slot.label}
                 </option>
               ))}
             </select>
-            {errors.periodNumber && <span className="error">{errors.periodNumber}</span>}
+            {errors.timeSlotId && <span className="error">{errors.timeSlotId}</span>}
           </div>
 
           <div className="form-group">
@@ -396,58 +444,59 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
           </div>
 
           <div className="form-group">
-            <label>Subject Code</label>
-            <input
-              type="text"
-              name="subjectCode"
-              className="form-input"
-              placeholder="e.g., CS301"
-              value={periodForm.subjectCode}
+            <label>Subject</label>
+            <select
+              name="subjectId"
+              className="form-select"
+              value={periodForm.subjectId}
               onChange={handlePeriodFormChange}
-              disabled={isReadOnly || isBreakOrLunch}
-            />
-            {errors.subjectCode && <span className="error">{errors.subjectCode}</span>}
+              disabled={isReadOnly}
+            >
+              <option value="">Select Subject</option>
+              {subjects.map(subject => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.subject_code} - {subject.subject_name}
+                </option>
+              ))}
+            </select>
+            {errors.subjectId && <span className="error">{errors.subjectId}</span>}
           </div>
 
           <div className="form-group">
-            <label>Subject Name</label>
-            <input
-              type="text"
-              name="subjectName"
-              className="form-input"
-              placeholder="e.g., Data Structures"
-              value={periodForm.subjectName}
+            <label>Faculty</label>
+            <select
+              name="facultyId"
+              className="form-select"
+              value={periodForm.facultyId}
               onChange={handlePeriodFormChange}
-              disabled={isReadOnly || isBreakOrLunch}
-            />
-            {errors.subjectName && <span className="error">{errors.subjectName}</span>}
+              disabled={isReadOnly}
+            >
+              <option value="">Select Faculty</option>
+              {faculties.map(faculty => (
+                <option key={faculty.id} value={faculty.id}>
+                  {faculty.name}
+                </option>
+              ))}
+            </select>
+            {errors.facultyId && <span className="error">{errors.facultyId}</span>}
           </div>
 
           <div className="form-group">
-            <label>Staff Name</label>
-            <input
-              type="text"
-              name="staffName"
-              className="form-input"
-              placeholder="e.g., Dr. John Smith"
-              value={periodForm.staffName}
+            <label>Room (Optional)</label>
+            <select
+              name="roomId"
+              className="form-select"
+              value={periodForm.roomId}
               onChange={handlePeriodFormChange}
-              disabled={isReadOnly || isBreakOrLunch}
-            />
-            {errors.staffName && <span className="error">{errors.staffName}</span>}
-          </div>
-
-          <div className="form-group">
-            <label>Room / Lab Number</label>
-            <input
-              type="text"
-              name="roomNumber"
-              className="form-input"
-              placeholder="e.g., Room 101 / Lab 3"
-              value={periodForm.roomNumber}
-              onChange={handlePeriodFormChange}
-              disabled={isReadOnly || isBreakOrLunch}
-            />
+              disabled={isReadOnly}
+            >
+              <option value="">Select Room</option>
+              {rooms.map(room => (
+                <option key={room.id} value={room.id}>
+                  {room.room_number} ({room.room_type})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -469,7 +518,7 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
 
         <div className="period-list">
           <h4 className="period-list-title">Added Periods ({periods.length})</h4>
-          
+           
           {periods.length === 0 ? (
             <div className="empty-periods">
               <div className="empty-periods-icon">📋</div>
@@ -477,25 +526,23 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
             </div>
           ) : (
             periods.map((period, index) => {
-              const timeInfo = getTimeForPeriod(period.periodNumber);
+              const timeSlot = getTimeSlotById(period.time_slot_id);
               return (
                 <div key={period.id} className="period-card">
                   <div className="period-info">
-                    <div className="period-number">{period.periodNumber}</div>
+                    <div className="period-number">{timeSlot?.period_number || period.time_slot_id}</div>
                     <div className="period-details">
                       <div className="period-subject">
-                        {period.subjectType === 'Break' || period.subjectType === 'Lunch' 
-                          ? period.subjectType 
-                          : `${period.subjectCode} - ${period.subjectName}`}
+                        {period.subject_code} - {period.subject_name}
                         <span className={`subject-badge ${getBadgeClass(period.subjectType)}`}>
                           {period.subjectType}
                         </span>
                       </div>
                       <div className="period-meta">
                         <span>📅 {period.day}</span>
-                        <span>🕐 {timeInfo?.start} - {timeInfo?.end}</span>
-                        {period.staffName && <span>👤 {period.staffName}</span>}
-                        {period.roomNumber && <span>📍 {period.roomNumber}</span>}
+                        <span>🕐 {timeSlot?.start_time} - {timeSlot?.end_time}</span>
+                        {period.faculty_name && <span>👤 {period.faculty_name}</span>}
+                        {period.room_number && <span>📍 {period.room_number}</span>}
                       </div>
                     </div>
                   </div>

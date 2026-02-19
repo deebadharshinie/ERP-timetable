@@ -1,13 +1,18 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Class = sequelize.define('class', {
+const Subject = sequelize.define('subject', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  name: {
+  subject_code: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    unique: true
+  },
+  subject_name: {
     type: DataTypes.STRING(100),
     allowNull: false
   },
@@ -15,27 +20,22 @@ const Class = sequelize.define('class', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  year: {
-    type: DataTypes.STRING(50),
-    allowNull: false
+  subject_type: {
+    type: DataTypes.ENUM('Theory', 'Lab', 'Theory/Lab'),
+    defaultValue: 'Theory'
   },
-  section: {
-    type: DataTypes.STRING(10),
-    allowNull: false,
-    defaultValue: 'A'
-  },
-  semester: {
-    type: DataTypes.STRING(20),
-    allowNull: false
+  credits: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   }
 }, {
-  tableName: 'classes',
+  tableName: 'subjects',
   timestamps: true,
   underscored: true
 });
 
-module.exports = Class;
+module.exports = Subject;

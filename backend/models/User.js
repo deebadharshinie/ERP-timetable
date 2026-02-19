@@ -1,39 +1,43 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const userSchema = new mongoose.Schema({
+const User = sequelize.define('user', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
   },
   role: {
-    type: String,
-    enum: ['Admin', 'Faculty', 'HOD', 'Class Incharge'],
-    default: 'Faculty'
+    type: DataTypes.ENUM('Admin', 'Faculty', 'HOD', 'Class Incharge'),
+    defaultValue: 'Faculty'
   },
   departmentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department',
-    default: null
+    type: DataTypes.INTEGER,
+    references: {
+      model: 'departments',
+      key: 'id'
+    }
   },
   isActive: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    { fields: ['email'] },
+    { fields: ['role'] },
+    { fields: ['departmentId'] }
+  ]
 });
 
-// Index for faster queries
-userSchema.index({ email: 1 });
-userSchema.index({ role: 1 });
-userSchema.index({ departmentId: 1 });
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

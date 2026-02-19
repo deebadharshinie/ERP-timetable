@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Class = sequelize.define('class', {
+const Faculty = sequelize.define('faculty', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -11,31 +11,36 @@ const Class = sequelize.define('class', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
+  employee_id: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    unique: true
+  },
   department_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  year: {
+  designation: {
     type: DataTypes.STRING(50),
-    allowNull: false
+    defaultValue: 'Assistant Professor'
   },
-  section: {
-    type: DataTypes.STRING(10),
-    allowNull: false,
-    defaultValue: 'A'
+  email: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    unique: true
   },
-  semester: {
+  phone: {
     type: DataTypes.STRING(20),
-    allowNull: false
+    allowNull: true
   },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   }
 }, {
-  tableName: 'classes',
+  tableName: 'faculties',
   timestamps: true,
   underscored: true
 });
 
-module.exports = Class;
+module.exports = Faculty;

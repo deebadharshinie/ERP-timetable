@@ -1,15 +1,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 
 // Route imports
 const timetables = require('./routes/timetables');
+const classes = require('./routes/classes');
+const subjects = require('./routes/subjects');
+const faculties = require('./routes/faculties');
+const rooms = require('./routes/rooms');
+const departments = require('./routes/departments');
 
 // Initialize express
 const app = express();
 
-// Connect to MongoDB
+// Connect to MySQL
 connectDB();
 
 // Middleware
@@ -19,6 +24,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // API Routes
 app.use('/api/timetables', timetables);
+app.use('/api/classes', classes);
+app.use('/api/subjects', subjects);
+app.use('/api/faculties', faculties);
+app.use('/api/rooms', rooms);
+app.use('/api/departments', departments);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

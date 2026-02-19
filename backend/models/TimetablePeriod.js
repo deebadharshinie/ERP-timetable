@@ -1,62 +1,64 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const timetablePeriodSchema = new mongoose.Schema({
-  timetableId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Timetable',
-    required: true
+const TimetablePeriod = sequelize.define('timetable_period', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  timetable_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'timetable',
+      key: 'id'
+    }
   },
   day: {
-    type: String,
-    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    required: true
+    type: DataTypes.ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
+    allowNull: false
   },
-  periodNo: {
-    type: String,
-    required: true,
-    // P1, P2, P3, P4, P5, P6, P7
+  period_no: {
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  startTime: {
-    type: String,
-    required: true,
-    // Example: "09:30"
+  start_time: {
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  endTime: {
-    type: String,
-    required: true,
-    // Example: "10:20"
+  end_time: {
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  subjectCode: {
-    type: String,
-    trim: true,
-    default: ''
+  subject_code: {
+    type: DataTypes.STRING(20),
+    defaultValue: ''
   },
-  subjectName: {
-    type: String,
-    trim: true,
-    default: ''
+  subject_name: {
+    type: DataTypes.STRING(100),
+    defaultValue: ''
   },
-  facultyName: {
-    type: String,
-    trim: true,
-    default: ''
+  faculty_name: {
+    type: DataTypes.STRING(100),
+    defaultValue: ''
   },
-  subjectType: {
-    type: String,
-    enum: ['Theory', 'Lab', 'Free Period', 'Break', 'Lunch'],
-    default: 'Theory'
+  subject_type: {
+    type: DataTypes.ENUM('Theory', 'Lab', 'Free Period', 'Break', 'Lunch'),
+    defaultValue: 'Theory'
   },
-  roomNumber: {
-    type: String,
-    trim: true,
-    default: ''
+  room_number: {
+    type: DataTypes.STRING(50),
+    defaultValue: ''
   }
 }, {
-  timestamps: false // Use parent timetable's timestamps
+  tableName: 'timetable_periods',
+  timestamps: false,
+  underscored: true,
+  indexes: [
+    { fields: ['timetable_id', 'day', 'period_no'] },
+    { fields: ['timetable_id'] }
+  ]
 });
 
-// Compound index for efficient querying
-timetablePeriodSchema.index({ timetableId: 1, day: 1, periodNo: 1 });
-timetablePeriodSchema.index({ timetableId: 1 });
-
-module.exports = mongoose.model('TimetablePeriod', timetablePeriodSchema);
+module.exports = TimetablePeriod;
