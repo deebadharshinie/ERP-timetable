@@ -24,10 +24,13 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Faculty from EduVertex
+  const [eduvertexFaculties, setEduvertexFaculties] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+
   const [formData, setFormData] = useState({
     academicYear: '',
-    department: '',
-    classId: '',
     semester: '',
     ...initialData
   });
@@ -70,6 +73,16 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
         const roomsResponse = await roomAPI.getAll({ is_available: true });
         if (roomsResponse.success) {
           setRooms(roomsResponse.data);
+        }
+
+        // Fetch faculty directly from EduVertex
+        try {
+          const facultyResponse = await facultyAPI.getFromEduvertex();
+          if (facultyResponse.success) {
+            setEduvertexFaculties(facultyResponse.data);
+          }
+        } catch (facultyErr) {
+          console.log('Could not fetch from EduVertex, using local faculties');
         }
 
         setLoading(false);
@@ -117,22 +130,13 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
     fetchSubjects();
   }, [formData.department]);
 
-  // Fetch faculties when department changes
-  useEffect(() => {
-    const fetchFaculties = async () => {
-      if (formData.department) {
-        try {
-          const response = await facultyAPI.getAll({ department_id: formData.department });
-          if (response.success) {
-            setFaculties(response.data);
-          }
-        } catch (err) {
-          console.error('Error fetching faculties:', err);
-        }
-      }
-    };
-    fetchFaculties();
-  }, [formData.department]);
+  // Filter faculties by department
+  const filteredFaculties = selectedDepartment 
+    ? eduvertexFaculties.filter(f => f.department_id === parseInt(selectedDepartment))
+    : eduvertexFaculties;
+
+  // Get unique departments from faculty data
+  const facultyDepartments = [...new Map(eduvertexFaculties.map(f => [f.department_id, { id: f.department_id, name: f.department_id }])).values()];
 
   useEffect(() => {
     if (initialData.periods && initialData.periods.length > 0) {
@@ -162,6 +166,8 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   };
 
   const getFacultyById = (id) => {
+    const eduFaculty = eduvertexFaculties.find(f => f.id === parseInt(id));
+    if (eduFaculty) return eduFaculty;
     return faculties.find(f => f.id === parseInt(id));
   };
 
@@ -258,8 +264,6 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
     const newErrors = {};
     
     if (!formData.academicYear) newErrors.academicYear = 'Academic Year is required';
-    if (!formData.department) newErrors.department = 'Department is required';
-    if (!formData.classId) newErrors.classId = 'Class is required';
     if (!formData.semester) newErrors.semester = 'Semester is required';
     
     if (periods.length === 0) newErrors.periods = 'Please add at least one period';
@@ -271,15 +275,13 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
   const handleGenerate = () => {
     if (!validateForm()) return;
     
-    // Convert semester format to match database (e.g., "2026-Odd")
     const semesterValue = formData.semester.includes('-') 
       ? formData.semester 
       : `${formData.academicYear.split('-')[0]}-${formData.semester}`;
     
     onGenerate({
-      ...formData,
+      academicYear: formData.academicYear,
       semester: semesterValue,
-      class_id: parseInt(formData.classId),
       periods: periods
     });
   };
@@ -289,6 +291,26 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
       case 'Theory': return 'badge-theory';
       case 'Lab': return 'badge-lab';
       default: return '';
+    }
+  };
+
+  const getFacultyDepartmentName = (deptId) => {
+    const dept = facultyDepartments.find(d => d.id === deptId);
+    return dept ? `Department ${deptId}` : 'Unknown Department';
+  };
+
+  const handleDepartmentChange = (e) => {
+    setSelectedDepartment(e.target.value);
+    setSelectedFaculty(null);
+  };
+
+  const handleFacultyChange = (e) => {
+    const facultyId = e.target.value;
+    if (facultyId) {
+      const faculty = eduvertexFaculties.find(f => f.id === parseInt(facultyId));
+      setSelectedFaculty(faculty);
+    } else {
+      setSelectedFaculty(null);
     }
   };
 
@@ -336,39 +358,18 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
           <div className="form-group">
             <label>Department</label>
             <select
-              name="department"
               className="form-select"
-              value={formData.department}
-              onChange={handleInputChange}
+              value={selectedDepartment}
+              onChange={handleDepartmentChange}
               disabled={isReadOnly}
             >
               <option value="">Select Department</option>
-              {departments.map(dept => (
+              {facultyDepartments.map(dept => (
                 <option key={dept.id} value={dept.id}>
-                  {dept.department_name}
+                  {getFacultyDepartmentName(dept.id)}
                 </option>
               ))}
             </select>
-            {errors.department && <span className="error">{errors.department}</span>}
-          </div>
-
-          <div className="form-group">
-            <label>Class</label>
-            <select
-              name="classId"
-              className="form-select"
-              value={formData.classId}
-              onChange={handleInputChange}
-              disabled={isReadOnly}
-            >
-              <option value="">Select Class</option>
-              {classes.map(cls => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name} - Section {cls.section}
-                </option>
-              ))}
-            </select>
-            {errors.classId && <span className="error">{errors.classId}</span>}
           </div>
 
           <div className="form-group">
@@ -463,7 +464,7 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
           </div>
 
           <div className="form-group">
-            <label>Faculty</label>
+            <label>Faculty (From EduVertex)</label>
             <select
               name="facultyId"
               className="form-select"
@@ -472,9 +473,9 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
               disabled={isReadOnly}
             >
               <option value="">Select Faculty</option>
-              {faculties.map(faculty => (
+              {filteredFaculties.map(faculty => (
                 <option key={faculty.id} value={faculty.id}>
-                  {faculty.name}
+                  {faculty.name} {faculty.designation ? `(${faculty.designation})` : ''}
                 </option>
               ))}
             </select>
@@ -518,7 +519,7 @@ const TimetableForm = ({ onGenerate, initialData, isReadOnly }) => {
 
         <div className="period-list">
           <h4 className="period-list-title">Added Periods ({periods.length})</h4>
-           
+            
           {periods.length === 0 ? (
             <div className="empty-periods">
               <div className="empty-periods-icon">📋</div>

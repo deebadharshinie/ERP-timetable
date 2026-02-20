@@ -59,6 +59,16 @@ export const timetableAPI = {
   }),
   
   getTimeSlots: () => fetchAPI('/timetables/slots/all'),
+  
+  getByFaculty: (facultyId, semester) => {
+    const queryString = semester ? `?semester=${semester}` : '';
+    return fetchAPI(`/timetables/by-faculty/${facultyId}${queryString}`);
+  },
+  
+  getByEmployee: (employeeId, semester) => {
+    const queryString = semester ? `?semester=${semester}` : '';
+    return fetchAPI(`/timetables/by-employee/${employeeId}${queryString}`);
+  },
 };
 
 // Classes API
@@ -131,6 +141,9 @@ export const facultyAPI = {
   delete: (id) => fetchAPI(`/faculties/${id}`, {
     method: 'DELETE',
   }),
+  
+  // Fetch directly from EduVertex without syncing
+  getFromEduvertex: () => fetchAPI('/sync/faculties/eduvertex'),
 };
 
 // Rooms API

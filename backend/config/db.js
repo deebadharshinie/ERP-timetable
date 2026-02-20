@@ -1,12 +1,32 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'nscet_timetable',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',
+// EduVertex Database (Main ERP) - Read only
+const eduvertexSequelize = new Sequelize(
+  process.env.EDUVERTEX_DB_NAME || 'eduvertex',
+  process.env.EDUVERTEX_DB_USER || 'root',
+  process.env.EDUVERTEX_DB_PASSWORD || '',
   {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
+    host: process.env.EDUVERTEX_DB_HOST || 'localhost',
+    port: process.env.EDUVERTEX_DB_PORT || 3306,
+    dialect: 'mysql',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  }
+);
+
+// NSCET Timetable Database
+const timetableSequelize = new Sequelize(
+  process.env.TIMETABLE_DB_NAME || 'nscet_timetable',
+  process.env.TIMETABLE_DB_USER || 'root',
+  process.env.TIMETABLE_DB_PASSWORD || '',
+  {
+    host: process.env.TIMETABLE_DB_HOST || 'localhost',
+    port: process.env.TIMETABLE_DB_PORT || 3306,
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {
@@ -18,28 +38,34 @@ const sequelize = new Sequelize(
   }
 );
 
-// Test connection
+// Test connections
 const connectDB = async () => {
   try {
-    await sequelize.authenticate();
-    console.log('MySQL Connected successfully');
+    // Test EduVertex connection
+    await eduvertexSequelize.authenticate();
+    console.log('✓ EduVertex Database Connected successfully');
     
-    // Sync all models with database
-    // Note: This will create tables if they don't exist
-    // For production, you should use migrations instead
+    // Test Timetable connection
+    await timetableSequelize.authenticate();
+    console.log('✓ Timetable Database Connected successfully');
+    
+    // Sync timetable models in development
     if (process.env.NODE_ENV === 'development') {
-      // Import all models through index.js (includes associations)
       require('../models');
-      
-      await sequelize.sync({ alter: true });
-      console.log('Database models synchronized');
+      await timetableSequelize.sync({ alter: true });
+      console.log('✓ Timetable models synchronized');
     }
     
-    return sequelize;
+    return { eduvertex: eduvertexSequelize, timetable: timetableSequelize };
   } catch (error) {
-    console.error('Error connecting to MySQL:', error.message);
+    console.error('Error connecting to databases:', error.message);
     process.exit(1);
   }
 };
 
-module.exports = { sequelize, connectDB };
+module.exports = { 
+  eduvertexSequelize, 
+  timetableSequelize, 
+  sequelize: timetableSequelize, // Alias for backwards compatibility
+  connectDB 
+};

@@ -10,6 +10,7 @@ const subjects = require('./routes/subjects');
 const faculties = require('./routes/faculties');
 const rooms = require('./routes/rooms');
 const departments = require('./routes/departments');
+const sync = require('./routes/sync');
 
 // Initialize express
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/subjects', subjects);
 app.use('/api/faculties', faculties);
 app.use('/api/rooms', rooms);
 app.use('/api/departments', departments);
+app.use('/api/sync', sync);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
