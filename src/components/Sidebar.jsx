@@ -3,9 +3,6 @@ import React from 'react';
 const Sidebar = ({ currentView, setCurrentView }) => {
   const menuItems = [
     { id: 'form', icon: '📅', label: 'Create Timetable' },
-    { id: 'view-timetable', icon: '👁️', label: 'View Timetable' },
-    { id: 'reports', icon: '📊', label: 'Reports' },
-    { id: 'settings', icon: '⚙️', label: 'Settings' },
   ];
 
   return (
