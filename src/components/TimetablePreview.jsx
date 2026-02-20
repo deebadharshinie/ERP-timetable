@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import TimetableGrid from './TimetableGrid';
+import { timetableAPI } from '../services/api';
 
 const TimetablePreview = ({ 
   timetableData, 
@@ -11,15 +12,76 @@ const TimetablePreview = ({
   status 
 }) => {
   const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   
   const isReadOnly = status === 'Approved' || status === 'Forwarded';
   const isDraft = status === 'Draft';
+
+  const handleSaveToAPI = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Prepare data for API
+      const timetablePayload = {
+        class_id: timetableData.class_id,
+        semester: timetableData.semester,
+        created_by: 1 // Would normally come from auth
+      };
+
+      // Create timetable entry for each period
+      for (const period of timetableData.periods || []) {
+        const periodData = {
+          ...timetablePayload,
+          subject_id: period.subject_id,
+          faculty_id: period.faculty_id,
+          day_of_week: period.day,
+          time_slot_id: period.time_slot_id,
+          room_id: period.room_id || null
+        };
+
+        await timetableAPI.create(periodData);
+      }
+
+      setIsSaved(true);
+      if (onSave) {
+        onSave();
+      }
+    } catch (err) {
+      console.error('Error saving timetable:', err);
+      setError('Failed to save timetable. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = () => {
     setIsSaved(true);
     if (onSave) {
       onSave();
     }
+  };
+
+  // Get class info display
+  const getClassDisplay = () => {
+    if (timetableData.classId) {
+      return `Class ID: ${timetableData.classId}`;
+    }
+    if (timetableData.year && timetableData.section) {
+      return `${timetableData.year} - Section ${timetableData.section}`;
+    }
+    return 'N/A';
+  };
+
+  // Get department display
+  const getDepartmentDisplay = () => {
+    if (timetableData.department) {
+      return typeof timetableData.department === 'number' 
+        ? `Dept ID: ${timetableData.department}` 
+        : timetableData.department;
+    }
+    return 'N/A';
   };
 
   return (
@@ -37,10 +99,10 @@ const TimetablePreview = ({
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={handleSave}
-                disabled={isSaved}
+                onClick={handleSaveToAPI}
+                disabled={saving || isSaved}
               >
-                {isSaved ? '✓ Saved' : 'Save'}
+                {saving ? 'Saving...' : isSaved ? '✓ Saved' : 'Save to Database'}
               </button>
               <button 
                 className="btn btn-success" 
@@ -59,6 +121,18 @@ const TimetablePreview = ({
           )}
         </div>
       </div>
+
+      {error && (
+        <div style={{ 
+          padding: '12px', 
+          background: '#FEF2F2', 
+          color: '#DC2626', 
+          borderRadius: '6px', 
+          marginBottom: '20px' 
+        }}>
+          {error}
+        </div>
+      )}
 
       {isDraft && !isSaved && (
         <div className="draft-message">
@@ -80,29 +154,15 @@ const TimetablePreview = ({
           </div>
           <div className="info-item">
             <span className="info-label">Department</span>
-            <span className="info-value">{timetableData.department || 'N/A'}</span>
+            <span className="info-value">{getDepartmentDisplay()}</span>
           </div>
           <div className="info-item">
-            <span className="info-label">Year</span>
-            <span className="info-value">{timetableData.year || 'N/A'}</span>
+            <span className="info-label">Class</span>
+            <span className="info-value">{getClassDisplay()}</span>
           </div>
           <div className="info-item">
             <span className="info-label">Semester</span>
             <span className="info-value">{timetableData.semester || 'N/A'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Section</span>
-            <span className="info-value">{timetableData.section || 'N/A'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Effective From</span>
-            <span className="info-value">
-              {timetableData.effectiveDate 
-                ? new Date(timetableData.effectiveDate).toLocaleDateString('en-US', { 
-                    year: 'numeric', month: 'long', day: 'numeric' 
-                  }) 
-                : 'N/A'}
-            </span>
           </div>
           <div className="info-item">
             <span className="info-label">Total Periods</span>
@@ -117,7 +177,11 @@ const TimetablePreview = ({
         </div>
       </div>
 
-      <TimetableGrid periods={timetableData.periods || []} isReadOnly={isReadOnly} year={timetableData.year} />
+      <TimetableGrid 
+        periods={timetableData.periods || []} 
+        isReadOnly={isReadOnly} 
+        year={timetableData.year} 
+      />
 
       {isReadOnly && (
         <div style={{ 

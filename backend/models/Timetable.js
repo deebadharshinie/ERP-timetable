@@ -1,91 +1,72 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const timetableSchema = new mongoose.Schema({
-  academicYear: {
-    type: String,
-    required: true,
-    // Example: "2024-2025"
+const Timetable = sequelize.define('timetable', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
   },
-  departmentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department',
-    required: true
+  class_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'classes',
+      key: 'id'
+    }
   },
-  classId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
-    required: true
+  subject_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'subjects',
+      key: 'id'
+    }
   },
-  year: {
-    type: String,
-    enum: ['First Year', 'Second Year', 'Third Year', 'Final Year'],
-    required: true
+  faculty_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'faculties',
+      key: 'id'
+    }
+  },
+  day_of_week: {
+    type: DataTypes.ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
+    allowNull: false
+  },
+  time_slot_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'time_slots',
+      key: 'id'
+    }
+  },
+  room_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'rooms',
+      key: 'id'
+    }
   },
   semester: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 8
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  section: {
-    type: String,
-    enum: ['A', 'B', 'C'],
-    default: 'A'
+  created_by: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
-  effectiveFrom: {
-    type: Date,
-    required: true
-  },
-  totalPeriods: {
-    type: Number,
-    default: 42 // 7 periods × 6 days
-  },
-  status: {
-    type: String,
-    enum: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'],
-    default: 'DRAFT'
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  forwardedToRole: {
-    type: String,
-    enum: ['CLASS_INCHARGE', 'HOD', null],
-    default: null
-  },
-  approvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  approvedAt: {
-    type: Date,
-    default: null
-  },
-  rejectedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  rejectedAt: {
-    type: Date,
-    default: null
-  },
-  rejectionReason: {
-    type: String,
-    default: ''
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 }, {
-  timestamps: true
+  tableName: 'timetable',
+  timestamps: false,
+  underscored: true
 });
 
-// Indexes for efficient querying
-timetableSchema.index({ departmentId: 1, status: 1 });
-timetableSchema.index({ classId: 1, status: 1 });
-timetableSchema.index({ status: 1 });
-timetableSchema.index({ createdBy: 1 });
-timetableSchema.index({ academicYear: 1, departmentId: 1, year: 1, section: 1 });
-
-module.exports = mongoose.model('Timetable', timetableSchema);
+module.exports = Timetable;

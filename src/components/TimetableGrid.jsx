@@ -1,44 +1,24 @@
 import React from 'react';
 import './ViewTimetable.css';
 
-// Timing for Third Year & Final Year (existing structure)
-const PERIOD_TIMES_NORMAL = [
-  { period: 1, start: '09:30', end: '10:20', label: 'P1' },
-  { period: 2, start: '10:20', end: '11:10', label: 'P2' },
-  { period: 'Break', start: '11:10', end: '11:30', label: 'Break' },
-  { period: 3, start: '11:30', end: '12:25', label: 'P3' },
-  { period: 'Lunch', start: '12:25', end: '01:10', label: 'Lunch' },
-  { period: 4, start: '01:10', end: '02:00', label: 'P4' },
-  { period: 5, start: '02:00', end: '02:20', label: 'P5' },
-  { period: 'Break2', start: '02:20', end: '03:10', label: 'Break' },
-  { period: 6, start: '03:10', end: '04:00', label: 'P6' },
-  { period: 7, start: '04:00', end: '04:45', label: 'P7' },
-];
-
-// Timing for First Year & Second Year (continuous with breaks after P2, P4, P6)
-const PERIOD_TIMES_FIRST_SECOND = [
-  { period: 1, start: '09:30', end: '10:20', label: 'P1' },
-  { period: 2, start: '10:20', end: '11:10', label: 'P2' },
-  { period: 'Break1', start: '11:10', end: '11:30', label: 'Brk' },
-  { period: 3, start: '11:30', end: '12:20', label: 'P3' },
-  { period: 4, start: '12:20', end: '01:10', label: 'P4' },
-  { period: 'Break2', start: '01:10', end: '01:30', label: 'Brk' },
-  { period: 'Lunch', start: '01:30', end: '02:10', label: 'Lunch' },
-  { period: 5, start: '02:10', end: '03:00', label: 'P5' },
-  { period: 6, start: '03:00', end: '03:50', label: 'P6' },
-  { period: 'Break3', start: '03:50', end: '04:10', label: 'Brk' },
-  { period: 7, start: '04:10', end: '05:00', label: 'P7' },
+// Time slots matching the database schema (from time_slots table)
+const DEFAULT_TIME_SLOTS = [
+  { id: 1, start_time: '09:00:00', end_time: '10:00:00', period_number: 1, label: 'P1' },
+  { id: 2, start_time: '10:00:00', end_time: '11:00:00', period_number: 2, label: 'P2' },
+  { id: 3, start_time: '11:15:00', end_time: '12:15:00', period_number: 3, label: 'P3' },
+  { id: 4, start_time: '13:15:00', end_time: '14:15:00', period_number: 4, label: 'P4' },
+  { id: 5, start_time: '14:15:00', end_time: '15:15:00', period_number: 5, label: 'P5' },
+  { id: 6, start_time: '15:30:00', end_time: '16:30:00', period_number: 6, label: 'P6' },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const TimetableGrid = ({ periods, isReadOnly, year }) => {
-  // Determine which period times to use based on year
-  const isFirstOrSecondYear = year === 'I Year' || year === 'II Year';
-  const periodTimes = isFirstOrSecondYear ? PERIOD_TIMES_FIRST_SECOND : PERIOD_TIMES_NORMAL;
+const TimetableGrid = ({ periods, isReadOnly, year, timeSlots = DEFAULT_TIME_SLOTS }) => {
+  // Use provided time slots or default
+  const periodTimes = timeSlots.length > 0 ? timeSlots : DEFAULT_TIME_SLOTS;
 
-  const getPeriodsForDayAndPeriod = (day, period) => {
-    return periods.filter(p => p.day === day && p.periodNumber === period);
+  const getPeriodsForDayAndPeriod = (day, periodNumber) => {
+    return periods.filter(p => p.day === day && p.time_slot_id === periodNumber);
   };
 
   const getPeriodClass = (subjectType) => {
@@ -47,25 +27,27 @@ const TimetableGrid = ({ periods, isReadOnly, year }) => {
         return 'period-theory';
       case 'Lab':
         return 'period-lab';
-      case 'Break':
-        return 'period-break';
-      case 'Lunch':
-        return 'period-lunch';
-      case 'Free Period':
-        return 'period-free';
       default:
         return '';
     }
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    // Convert HH:MM:SS to HH:MM
+    return timeStr.substring(0, 5);
   };
 
   return (
     <div className="timetable-vertical">
       {/* Header Row - Days on left, Period times as headers */}
       <div className="day-header-cell">Day \ Time</div>
-      {periodTimes.map(timeSlot => (
-        <div key={timeSlot.period} className="time-header-cell">
-          <div className="time-header-label">{timeSlot.label}</div>
-          <div className="time-header-range">{timeSlot.start}<br/>{timeSlot.end}</div>
+      {periodTimes.map(slot => (
+        <div key={slot.id} className="time-header-cell">
+          <div className="time-header-label">{slot.label}</div>
+          <div className="time-header-range">
+            {formatTime(slot.start_time)}<br/>{formatTime(slot.end_time)}
+          </div>
         </div>
       ))}
 
@@ -76,29 +58,23 @@ const TimetableGrid = ({ periods, isReadOnly, year }) => {
           <div className="day-cell">{day}</div>
 
           {/* Period Columns */}
-          {periodTimes.map(timeSlot => {
-            const dayPeriods = getPeriodsForDayAndPeriod(day, timeSlot.period);
+          {periodTimes.map(slot => {
+            const dayPeriods = getPeriodsForDayAndPeriod(day, slot.id);
             return (
-              <div key={`${day}-${timeSlot.period}`} className="day-period-cell">
+              <div key={`${day}-${slot.id}`} className="day-period-cell">
                 {dayPeriods.length > 0 ? (
                   dayPeriods.map((period, idx) => (
                     <div 
                       key={idx} 
                       className={`period-card-vertical ${getPeriodClass(period.subjectType)}`}
                     >
-                      {period.subjectType === 'Break' || period.subjectType === 'Lunch' ? (
-                        <div className="break-label-vertical">{period.subjectType}</div>
-                      ) : (
-                        <>
-                          <div className="subject-code-vertical">{period.subjectCode}</div>
-                          <div className="subject-name-vertical">{period.subjectName}</div>
-                          {period.staffName && (
-                            <div className="staff-name-vertical">👤 {period.staffName}</div>
-                          )}
-                          {period.roomNumber && (
-                            <div className="room-number-vertical">📍 {period.roomNumber}</div>
-                          )}
-                        </>
+                      <div className="subject-code-vertical">{period.subject_code}</div>
+                      <div className="subject-name-vertical">{period.subject_name}</div>
+                      {period.faculty_name && (
+                        <div className="staff-name-vertical">👤 {period.faculty_name}</div>
+                      )}
+                      {period.room_number && (
+                        <div className="room-number-vertical">📍 {period.room_number}</div>
                       )}
                     </div>
                   ))

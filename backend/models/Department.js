@@ -1,28 +1,29 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const departmentSchema = new mongoose.Schema({
-  departmentCode: {
-    type: String,
-    required: true,
-    unique: true,
-    uppercase: true,
-    trim: true
+const Department = sequelize.define('department', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
   },
-  departmentName: {
-    type: String,
-    required: true,
-    trim: true
+  department_code: {
+    type: DataTypes.STRING(10),
+    allowNull: false,
+    unique: true
   },
-  isActive: {
-    type: Boolean,
-    default: true
+  department_name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
 }, {
-  timestamps: true
+  tableName: 'departments',
+  timestamps: true,
+  underscored: true
 });
 
-// Index for faster queries
-departmentSchema.index({ departmentCode: 1 });
-departmentSchema.index({ departmentName: 1 });
-
-module.exports = mongoose.model('Department', departmentSchema);
+module.exports = Department;
